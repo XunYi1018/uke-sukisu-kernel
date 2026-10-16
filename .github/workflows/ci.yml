@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    paths: ['scripts/**', 'patches/**', '.github/workflows/**', 'config.env', 'config/**']
+  pull_request:
+    paths: ['scripts/**', 'patches/**', '.github/workflows/**', 'config.env', 'config/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint scripts and workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck --severity=warning --external-sources scripts/*.sh patches/*.sh
+
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
+      - name: Validate config profiles
+        run: |
+          # Every profile must parse and pass validation without a real build.
+          fail=0
+          for f in config.env config/*.env; do
+            [ -f "$f" ] || continue
+            echo "::group::$f"
+            if CONFIG_ENV="$f" bash scripts/config.sh >/dev/null; then
+              echo "OK: $f"
+            else
+              echo "::error file=$f::config validation failed"
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$fail"
+
+      - name: Check upstream endpoints are alive
+        continue-on-error: true
+        run: |
+          # Informational: these are the URLs a build depends on. A failure here
+          # means an upstream moved, which is worth knowing before someone's
+          # build breaks at minute 40.
+          status=0
+          while read -r url; do
+            [ -n "$url" ] || continue
+            code=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 30 "$url" || echo 000)
+            if [ "$code" = "200" ]; then
+              printf '  ok   %s\n' "$url"
+            else
+              printf '  %-4s %s\n' "$code" "$url"; status=1
+            fi
+          done <<'URLS'
+          https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh
+          https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/dev/kernel/setup.sh
+          https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh
+          https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh
+          https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh
+          https://raw.githubusercontent.com/backslashxx/KernelSU/master/kernel/setup.sh
+          https://gitlab.com/simonpunk/susfs4ksu
+          https://github.com/osm0sis/AnyKernel3
+          URLS
+          exit "$status"
