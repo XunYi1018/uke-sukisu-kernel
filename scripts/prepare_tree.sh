@@ -6,6 +6,10 @@
 # first unreadable source, so the tree cannot be configured as shipped.
 # None of those modules are part of the boot kernel (the stock .config we
 # build from has no CONFIG_MI_* entries), so commenting the lines out is safe.
+#
+# NOTE: Kconfig resolves a relative `source` path against $srctree (the kernel
+# root), not against the directory of the including file. `lib/Kconfig` says
+# `source "lib/math/Kconfig"` -- resolving that against lib/ would be wrong.
 
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -18,7 +22,6 @@ cd "$KERNEL_DIR"
 omitted=0
 while IFS= read -r kc; do
 	[ -n "$kc" ] || continue
-	dir=$(dirname "$kc")
 	while IFS= read -r entry; do
 		[ -n "$entry" ] || continue
 		ln=${entry%%:*}
@@ -29,8 +32,7 @@ while IFS= read -r kc; do
 		case "$p" in
 			/*|\$*) continue ;;
 		esac
-		if [ ! -e "$dir/$p" ]; then
-			# shellcheck disable=SC2016
+		if [ ! -e "$p" ]; then
 			sed -i "${ln}s|^|# OMITTED (not in open-source tree): |" "$kc"
 			warn "omitted ${kc}:${ln} -> ${p}"
 			omitted=$((omitted + 1))
