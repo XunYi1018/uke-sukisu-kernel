@@ -237,7 +237,12 @@ ksu_hook_configs() {
 		kconf_enable "$defconfig" CONFIG_HAVE_KPROBES
 		kconf_enable "$defconfig" CONFIG_KPROBE_EVENTS
 		kconf_enable "$defconfig" CONFIG_KRETPROBES
-		[ "$variant" = "kernelsu-next" ] && kconf_enable "$defconfig" CONFIG_KSU_KPROBES_HOOK
+		# Keep this an `if`: as a bare `[ ... ] && cmd` it makes the whole
+		# function return 1 for every variant other than kernelsu-next, and the
+		# caller runs under `set -e`.
+		if [ "$variant" = "kernelsu-next" ]; then
+			kconf_enable "$defconfig" CONFIG_KSU_KPROBES_HOOK
+		fi
 		;;
 	manual)
 		case "$variant" in

@@ -197,9 +197,7 @@ jobs:
       - name: Build kernel
         env:
           RUNNER_DEBUG: 1
-        run: |
-          set -x
-          bash scripts/build.sh all
+        run: bash -x scripts/build.sh all
 
       - name: Package artifacts
         run: bash scripts/package.sh all
