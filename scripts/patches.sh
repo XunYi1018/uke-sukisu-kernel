@@ -146,10 +146,17 @@ susfs_defconfig() {
 	# hardcoded list is therefore wrong on one side or the other -- and wrong
 	# in the silent direction, since an unknown symbol in a defconfig is simply
 	# dropped, leaving the feature off with no warning.
-	local syms
-	syms=$(grep -rhoE '^[[:space:]]*config[[:space:]]+KSU_SUSFS[A-Z_]*' \
-			"$ksu_dir" "${KERNEL_DIR}/fs/Kconfig" "${KERNEL_DIR}/drivers/kernelsu" 2>/dev/null \
-		| awk '{print $2}' | sort -u)
+	# Only search paths that actually exist. Passing a missing path to grep
+	# makes it exit 2, which under `set -o pipefail` aborts the whole script
+	# with no message at all -- the failure looked like a silent step failure.
+	local syms="" paths=()
+	[ -d "$ksu_dir" ] && paths+=("$ksu_dir")
+	[ -f "${KERNEL_DIR}/fs/Kconfig" ] && paths+=("${KERNEL_DIR}/fs/Kconfig")
+	[ -d "${KERNEL_DIR}/drivers/kernelsu" ] && paths+=("${KERNEL_DIR}/drivers/kernelsu")
+	if [ ${#paths[@]} -gt 0 ]; then
+		syms=$(grep -rhoE '^[[:space:]]*config[[:space:]]+KSU_SUSFS[A-Z_]*' "${paths[@]}" 2>/dev/null \
+			| awk '{print $2}' | sort -u || true)
+	fi
 
 	if [ -z "$syms" ]; then
 		die "found no KSU_SUSFS Kconfig symbols to enable.
