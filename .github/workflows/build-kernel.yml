@@ -180,6 +180,9 @@ jobs:
           cp configs/uke_gki_defconfig \
             "$WORKSPACE/android-kernel/arch/arm64/configs/uke_gki_defconfig"
 
+      - name: Prune un-shipped Kconfig sources
+        run: bash scripts/prepare_tree.sh
+
       - name: Install KernelSU
         if: env.KSU_VARIANT != 'none'
         run: bash scripts/kernelsu.sh
